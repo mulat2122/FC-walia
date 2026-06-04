@@ -1582,6 +1582,14 @@ document.addEventListener('DOMContentLoaded', function(){
   renderEvents();
   loadGalerieFromStorage();  // ← Lädt Fotos aus Supabase!
 });
+function addGalerieLink() {
+  if (!isAdmin()) return;
+  var url = prompt('Postimages Direct Link einfügen:\n\n1. postimages.org\n2. Foto hochladen\n3. Direct link kopieren', '');
+  if (!url || !url.trim()) return;
+  galeriePhotos.push({url: url.trim(), name: url.trim()});
+  renderGalerie();
+  showToast('✅ Foto hinzugefügt!', 'green');
+}
 </script>
 
 </body>
