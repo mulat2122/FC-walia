@@ -1567,6 +1567,14 @@ document.addEventListener('click', function(e){
 // ═══════════════════════════════════════════
 //  INIT — beim Laden Fotos aus Supabase holen
 // ═══════════════════════════════════════════
+function uploadVorstandPhoto(i) {
+  var url = prompt('Postimages-Link einfügen:\n\n1. postimages.org\n2. Foto hochladen\n3. Direct link kopieren', vorstandData[i].photo || '');
+  if (url === null) return;
+  vorstandData[i].photo = url.trim();
+  renderVorstand();
+  saveVorstandToSupabase();
+  showToast(url ? '✅ Foto gespeichert!' : '🗑 Foto entfernt', url ? 'green' : 'red');
+}
 document.addEventListener('DOMContentLoaded', function(){
   loadVorstandFromSupabase();  // ← Lädt Vorstand aus Supabase!
   renderSponsors();
