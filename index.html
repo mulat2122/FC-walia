@@ -581,14 +581,19 @@ function saveVorstand(){saveVorstandToSupabase();}
 function resetVorstand(){if(confirm('Vorstand zurücksetzen?')){vorstandData=vorstandDefault.map(function(m){return Object.assign({},m);});renderVorstand();renderHomeVorstand();showToast('🔄 Zurückgesetzt!','green');}}
 
 // SPIELPLAN
-var spielplanData=[
-  {datum:'Sa. 04 Mai 2024',heim:'FC Walia Nürnberg',gast:'SC Germania',ergebnis:'3:1',ort:'Sportpark Hohe Marter',typ:'heim'},
-  {datum:'Sa. 18 Mai 2024',heim:'SV Frankonia',gast:'FC Walia Nürnberg',ergebnis:'1:2',ort:'Frankenstadion Nebenplatz',typ:'auswärts'},
-  {datum:'So. 26 Mai 2024',heim:'FC Walia Nürnberg',gast:'TSV Altenfurt',ergebnis:'',ort:'Sportanlage Nürnberg · 15:00 Uhr',typ:'nächstes'},
-  {datum:'Sa. 08 Jun 2024',heim:'FC Noris United',gast:'FC Walia Nürnberg',ergebnis:'',ort:'Sportpark Gostenhof · 14:00 Uhr',typ:'auswärts'},
-  {datum:'Sa. 22 Jun 2024',heim:'FC Walia Nürnberg',gast:'ASC Edelweiß',ergebnis:'',ort:'Sportpark Hohe Marter · 15:00 Uhr',typ:'heim'}
-];
+var spielplanData=[];
 var editingSpielIndex=-1;
+
+function loadSpielplanFromSupabase(){
+  fetch(SUPABASE_URL+'/rest/v1/spielplan?order=position.asc',{
+    headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY}
+  }).then(function(r){return r.json();}).then(function(data){
+    if(Array.isArray(data)&&data.length>0){
+      spielplanData=data.map(function(row){return{id:row.id,datum:row.datum,heim:row.heim,gast:row.gast,ergebnis:row.ergebnis||'',ort:row.ort||'',typ:row.typ||'heim'};});
+    }
+    renderSpielplan();updateNaechstesSpiel();
+  }).catch(function(){renderSpielplan();updateNaechstesSpiel();});
+}
 
 function renderSpielplan(){
   var list=document.getElementById('match-list');if(!list)return;list.innerHTML='';
@@ -617,17 +622,38 @@ function saveSpiel(){
   var datum=document.getElementById('sp-datum').value.trim();var heim=document.getElementById('sp-heim').value.trim();var gast=document.getElementById('sp-gast').value.trim();
   if(!datum||!heim||!gast){alert('Bitte Datum, Heim- und Gastteam eingeben!');return;}
   var entry={datum:datum,heim:heim,gast:gast,ergebnis:document.getElementById('sp-ergebnis').value.trim(),ort:document.getElementById('sp-ort').value.trim(),typ:document.getElementById('sp-typ').value};
-  if(editingSpielIndex>=0){spielplanData[editingSpielIndex]=entry;}else{spielplanData.push(entry);}
-  closeSpielModal();renderSpielplan();updateNaechstesSpiel();showToast('✅ Spiel gespeichert!','green');
+  closeSpielModal();
+  if(editingSpielIndex>=0&&spielplanData[editingSpielIndex]&&spielplanData[editingSpielIndex].id){
+    var id=spielplanData[editingSpielIndex].id;
+    fetch(SUPABASE_URL+'/rest/v1/spielplan?id=eq.'+id,{method:'PATCH',headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(entry)})
+    .then(function(){loadSpielplanFromSupabase();showToast('✅ Spiel gespeichert!','green');}).catch(function(){showToast('⚠️ Fehler beim Speichern','red');});
+  } else {
+    entry.position=spielplanData.length;
+    fetch(SUPABASE_URL+'/rest/v1/spielplan',{method:'POST',headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify(entry)})
+    .then(function(r){return r.json();}).then(function(){loadSpielplanFromSupabase();showToast('✅ Spiel gespeichert!','green');}).catch(function(){showToast('⚠️ Fehler beim Speichern','red');});
+  }
 }
-function deleteSpiel(i){if(confirm('Spiel löschen?')){spielplanData.splice(i,1);renderSpielplan();updateNaechstesSpiel();showToast('🗑 Spiel gelöscht','red');}}
+function deleteSpiel(i){
+  if(!confirm('Spiel löschen?'))return;
+  var sp=spielplanData[i];
+  if(sp&&sp.id){fetch(SUPABASE_URL+'/rest/v1/spielplan?id=eq.'+sp.id,{method:'DELETE',headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY}}).then(function(){loadSpielplanFromSupabase();showToast('🗑 Spiel gelöscht','red');});}
+  else{spielplanData.splice(i,1);renderSpielplan();updateNaechstesSpiel();showToast('🗑 Spiel gelöscht','red');}
+}
 
 // EVENTS
-var eventsData=[
-  {cat:'reise',title:'Auswärtsfahrt nach München',date:'2024-05-10',text:'Das Team reiste gemeinsam nach München zum Freundschaftsspiel.',photo:'',color:'#1a56b0'},
-  {cat:'event',title:'Vereinsfest 2024',date:'2024-07-15',text:'Großes Sommerfest mit Musik, Essen und Fußball.',photo:'',color:'#1a6b2f'}
-];
+var eventsData=[];
 var editingEventIndex=-1;
+
+function loadEventsFromSupabase(){
+  fetch(SUPABASE_URL+'/rest/v1/events?order=created_at.desc',{
+    headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY}
+  }).then(function(r){return r.json();}).then(function(data){
+    if(Array.isArray(data)){
+      eventsData=data.map(function(row){return{id:row.id,cat:row.kategorie||'event',title:row.titel||'',text:row.text||'',date:row.datum||'',photo:row.foto||'',color:CAT_INFO[row.kategorie||'event']?CAT_INFO[row.kategorie||'event'].color:'#1a6b2f'};});
+    }
+    renderEvents();
+  }).catch(function(){renderEvents();});
+}
 var CAT_INFO={event:{icon:'📅',label:'Event',color:'#1a6b2f'},reise:{icon:'✈️',label:'Reise',color:'#1a56b0'},news:{icon:'📰',label:'News',color:'#555'},portrait:{icon:'👤',label:'Portrait',color:'#cc1111'},photo:{icon:'🖼️',label:'Foto',color:'#e0a800'}};
 
 function renderEvents(){
@@ -655,11 +681,23 @@ function saveEvent(){
   if(!text){err.textContent='❌ Bitte Beschreibung eingeben.';err.style.display='block';return;}
   err.style.display='none';
   var cat=document.getElementById('ev-cat').value;
-  var entry={cat:cat,title:title,text:text,date:document.getElementById('ev-date').value,photo:document.getElementById('ev-photo-url').value.trim(),color:CAT_INFO[cat].color};
-  if(editingEventIndex>=0){eventsData[editingEventIndex]=entry;}else{eventsData.unshift(entry);}
-  closeEventModal();renderEvents();showToast('✅ Gespeichert!','green');
+  var supaEntry={kategorie:cat,titel:title,text:text,datum:document.getElementById('ev-date').value||null,foto:document.getElementById('ev-photo-url').value.trim()||null};
+  closeEventModal();
+  if(editingEventIndex>=0&&eventsData[editingEventIndex]&&eventsData[editingEventIndex].id){
+    var id=eventsData[editingEventIndex].id;
+    fetch(SUPABASE_URL+'/rest/v1/events?id=eq.'+id,{method:'PATCH',headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json','Prefer':'return=minimal'},body:JSON.stringify(supaEntry)})
+    .then(function(){loadEventsFromSupabase();showToast('✅ Gespeichert!','green');}).catch(function(){showToast('⚠️ Fehler beim Speichern','red');});
+  } else {
+    fetch(SUPABASE_URL+'/rest/v1/events',{method:'POST',headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY,'Content-Type':'application/json','Prefer':'return=representation'},body:JSON.stringify(supaEntry)})
+    .then(function(r){return r.json();}).then(function(){loadEventsFromSupabase();showToast('✅ Gespeichert!','green');}).catch(function(){showToast('⚠️ Fehler beim Speichern','red');});
+  }
 }
-function deleteEvent(i){if(confirm('Beitrag löschen?')){eventsData.splice(i,1);renderEvents();showToast('🗑 Beitrag gelöscht','red');}}
+function deleteEvent(i){
+  if(!confirm('Beitrag löschen?'))return;
+  var ev=eventsData[i];
+  if(ev&&ev.id){fetch(SUPABASE_URL+'/rest/v1/events?id=eq.'+ev.id,{method:'DELETE',headers:{'apikey':SUPABASE_ANON_KEY,'Authorization':'Bearer '+SUPABASE_ANON_KEY}}).then(function(){loadEventsFromSupabase();showToast('🗑 Beitrag gelöscht','red');});}
+  else{eventsData.splice(i,1);renderEvents();showToast('🗑 Beitrag gelöscht','red');}
+}
 
 // SPONSOREN
 var sponsorData=[{name:'SPONSOR',sub:'Ihr Logo hier',color:'#1a6b2f'},{name:'SPONSOR',sub:'Ihr Logo hier',color:'#cc1111'},{name:'SPONSOR',sub:'Ihr Logo hier',color:'#1a56b0'}];
@@ -693,7 +731,9 @@ document.addEventListener('keydown',function(e){var lb=document.getElementById('
 document.addEventListener('DOMContentLoaded',function(){
   loadVorstandFromSupabase();
   loadGalerieFromSupabase();
-  renderSponsors();renderPlayers();renderEvents();renderSpielplan();updateNaechstesSpiel();
+  loadSpielplanFromSupabase();
+  loadEventsFromSupabase();
+  renderSponsors();renderPlayers();
 });
 </script>
 </body>
