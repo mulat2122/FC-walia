@@ -557,7 +557,7 @@ function renderVorstand(){
   var grid=document.getElementById('vorstand-grid');if(!grid)return;grid.innerHTML='';
   vorstandData.forEach(function(m,i){
     var card=document.createElement('div');card.className='v-card';card.style.cssText='width:100%;max-width:340px;border-radius:8px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.15);';
-    var photoHTML=m.photo?'<img src="'+m.photo+'" style="width:100%;height:200px;object-fit:cover;display:block;" onerror="this.style.display=\'none\'"/>':'<div style="width:100%;height:200px;background:linear-gradient(135deg,#c8dfc8,#a8c8a8);display:flex;align-items:center;justify-content:center;font-size:4rem;">👤</div>';
+    var photoHTML=m.photo?'<img src="'+m.photo+'" style="width:100%;height:200px;object-fit:cover;display:block;cursor:pointer;" onclick="uploadVorstandPhoto('+i+')" onerror="this.style.display=\'none\'"/>':'<div style="width:100%;height:200px;background:linear-gradient(135deg,#c8dfc8,#a8c8a8);display:flex;align-items:center;justify-content:center;font-size:4rem;cursor:pointer;" onclick="uploadVorstandPhoto('+i+')">👤</div>';
     var adminBtns=isAdmin()?'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px;"><button onclick="uploadVorstandPhoto('+i+')" style="background:var(--green);color:#fff;border:none;padding:14px 8px;border-radius:6px;font-family:Oswald,sans-serif;font-size:0.85rem;cursor:pointer;">📷 FOTO</button><button onclick="editVorstand('+i+',event)" style="background:#555;color:#fff;border:none;padding:14px 8px;border-radius:6px;font-family:Oswald,sans-serif;font-size:0.85rem;cursor:pointer;">✏️ NAME</button><button onclick="deleteVorstand('+i+',event)" style="background:var(--red);color:#fff;border:none;padding:14px 8px;border-radius:6px;font-family:Oswald,sans-serif;font-size:0.85rem;cursor:pointer;">🗑 WEG</button></div>':'';
     card.innerHTML=photoHTML+'<div style="background:var(--green);color:#fff;padding:10px 14px;font-family:Oswald,sans-serif;font-size:1rem;font-weight:700;text-transform:uppercase;">'+m.name+'</div><div style="padding:8px 14px;font-size:0.9rem;color:var(--red);font-weight:700;">'+m.role+'</div>'+adminBtns;
     grid.appendChild(card);
@@ -571,8 +571,12 @@ function renderHomeVorstand(){
 }
 
 function uploadVorstandPhoto(i){
-  var url=prompt('📷 Postimages Direct Link einfügen:\n\n1. postimages.org öffnen\n2. Foto hochladen\n3. "Direct link" kopieren\n4. Hier einfügen:',vorstandData[i].photo||'');
-  if(url===null)return;vorstandData[i].photo=url.trim();renderVorstand();renderHomeVorstand();saveVorstandToSupabase();showToast(url?'✅ Foto gespeichert!':'🗑 Foto entfernt',url?'green':'red');
+  if(!isAdmin())return;
+  var url=prompt('📷 Foto-Link einfügen:',vorstandData[i].photo||'');
+  if(url===null)return;
+  vorstandData[i].photo=url.trim();
+  renderVorstand();renderHomeVorstand();saveVorstandToSupabase();
+  showToast(url?'✅ Foto gespeichert!':'🗑 Foto entfernt',url?'green':'red');
 }
 function editVorstand(i,e){if(e)e.stopPropagation();var name=prompt('Name:',vorstandData[i].name);if(name===null)return;var role=prompt('Position:',vorstandData[i].role);if(role===null)return;vorstandData[i].name=name||vorstandData[i].name;vorstandData[i].role=role||vorstandData[i].role;renderVorstand();renderHomeVorstand();}
 function addVorstandCard(){vorstandData.push({name:'Neues Mitglied',role:'Funktion',photo:''});renderVorstand();editVorstand(vorstandData.length-1,{stopPropagation:function(){}});}
